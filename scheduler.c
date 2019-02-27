@@ -25,19 +25,10 @@ typedef struct task_info {
   ucontext_t exit_context;
 
   int state;
-  unsigned int sleepTime;
+  size_t sleepTime;
   task_t waitingOn;
   bool blocked;
   int input;
-  
-  // TODO: Add fields here so you can:
-  //   a. Keep track of this task's state.
-  ////   --- string?
-  //   b. If the task is sleeping, when should it wake up?
-  //   c. If the task is waiting for another task, which task is it waiting for?
-  //   d. Was the task blocked waiting for user input? Once you successfully
-  //      read input, you will need to save it here so it can be returned.
-  ////   --- boolean?
 } task_info_t;
 
 int current_task = 0; //< The handle of the currently-executing task
@@ -61,29 +52,26 @@ void scheduler_init() {
 void rescheduler() {
   task_t new_task;
 
-  // Waiting task
-  /*if ((new_task = find_waiting(current)) != -1) {
-  // MAKE THIS AN IF/ELSE CONDITION
-  task_t new_task;
-
-  // Waiting task
-  if ((new_task = find_waiting()) != -1) {
-     printf("   new_task %d current_task %d\n", new_task, current_task);
-    tasks[new_task].state = RUNNING;
-    tasks[new_task].waitingOn = -1;
-  } else { // Totally new task
-    new_task = find_new();
-    tasks[new_task].state = RUNNING;
-    }*/
+  // Look for new task
   int i = current_task + 1;
   while (true) {
     if (i >= num_tasks) {
       i = 0;
     }
-    if (tasks[i].waitingOn == current_task) {
-      tasks[i].waitingOn = -1;
-      tasks[i].state = AVAILABLE;
-    }
+
+    // Free task blocked because of current_task
+    /* for (int j = 0; j < num_tasks; j++) {
+      if (tasks[j].waitingOn == current_task){
+         tasks[j].waitingOn = -1;
+         tasks[j].state = AVAILABLE;
+      }
+      break;
+      }*/
+
+    // Check when sleeping task is done
+    
+
+    // Find the next available task
     if (tasks[i].state == AVAILABLE) {
       printf("new task %d\n", i);
       new_task = i;
@@ -92,6 +80,7 @@ void rescheduler() {
       i++;
     }
   }
+
 
   tasks[new_task].state = RUNNING;
   task_t temp = current_task;
@@ -108,11 +97,20 @@ void task_exit() {
   // TODO: Handle the end of a task's execution here
   // Change state of current_task
   printf("I'm done %d\n", current_task);
+
+  if (current_task == 0)
+    return;
+  
+  for (int j = 0; j < num_tasks; j++) {
+      if (tasks[j].waitingOn == current_task){
+         tasks[j].waitingOn = -1;
+         tasks[j].state = AVAILABLE;
+      }
+  }
+  tasks[current_task].state = AVAILABLE;
   for (int i = 0; i < num_tasks; i++) {
     printf("task %d state %d waiton %d\n", i, tasks[i].state, tasks[i].waitingOn);
   }
-  tasks[current_task].state = ENDED;
-
   rescheduler();
   // Get the next task
 } // task_exit
@@ -186,6 +184,10 @@ void task_wait(task_t handle) {
 void task_sleep(size_t ms) {
   // TODO: Block this task until the requested time has elapsed.
   // Hint: Record the time the task should wake up instead of the time left for it to sleep. The bookkeeping is easier this way.
+  tasks[current_task].state = SLEEPING;
+  tasks[current_task].sleepTime = ms;
+
+  rescheduler();
   
 } // task_sleep
 
