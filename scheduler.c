@@ -58,10 +58,10 @@ void scheduler_init() {
   tasks[0].state = RUNNING;
 } // schedule_init
 
-task_t find_waiting(task_t current) {
-  int i = current + 1;
+task_t find_waiting() {
+  int i = current_task + 1;
   if (i > num_tasks) i = 0;
-  while (tasks[i].waitingOn != current || i < num_tasks) {
+  while (tasks[i].waitingOn != current_task || i < num_tasks) {
     printf("%d\n", i);
     i++;
       }
@@ -74,35 +74,51 @@ task_t find_waiting(task_t current) {
 } // find_waiting
 
 
-task_t find_new(task_t current) {
-  int i = current + 1;
+void find_new() {
+  int i = current_task + 1;
   if (i > num_tasks)
     i = 0;
   while (tasks[i].state != AVAILABLE || i < num_tasks) {
     i++;
-      }
+  }
 
-  return i;
+  // return i;
 } // find_new
 
-void rescheduler(task_t current) {
-  // MAKE THIS AN IF/ELSE CONDITION
+void rescheduler() {
   task_t new_task;
 
   // Waiting task
-  if ((new_task = find_waiting(current)) != -1) {
+  /*if ((new_task = find_waiting(current)) != -1) {
      printf("   new_task %d current_task %d\n", new_task, current_task);
     tasks[new_task].state = RUNNING;
     tasks[new_task].waitingOn = -1;
   } else { // Totally new task
     new_task = find_new(current);
     tasks[new_task].state = RUNNING;
+    }*/
+  int i = current_task + 1;
+  while (true) {
+    if (i >= num_tasks) {
+      i = 0;
+    }
+    if (tasks[i].waitingOn == current_task) {
+      tasks[i].waitingOn = -1;
+      tasks[i].state = AVAILABLE;
+    }
+    if (tasks[i].state == AVAILABLE) {
+      printf("new task %d\n", i);
+      new_task = i;
+      break;
+    } else {
+      i++;
+    }
   }
 
   tasks[new_task].state = RUNNING;
-  task_t temp = current;
-  current = new_task;
-  swapcontext(&tasks[temp].exit_context, &tasks[new_task].context);
+  task_t temp = current_task;
+  current_task = new_task;
+  swapcontext(&tasks[temp].context, &tasks[new_task].context);
 } // rescheduler
 
 /**
@@ -119,7 +135,7 @@ void task_exit() {
   }
   tasks[current_task].state = AVAILABLE;
 
-  rescheduler(current_task);
+  rescheduler();
   // Get the next task
 } // task_exit
 
@@ -138,7 +154,6 @@ void task_create(task_t* handle, task_fn_t fn) {
   *handle = index;
  
   // We're going to make two contexts: one to run the task, and one that runs at the end of the task so we can clean up. Start with the second
-  /////// THIS IS THE ONLY PLACE WHERE WE MAKE CONTEXTS
   
   // First, duplicate the current context as a starting point
   getcontext(&tasks[index].exit_context);
@@ -162,6 +177,7 @@ void task_create(task_t* handle, task_fn_t fn) {
   
   // And finally, set up the context to execute the task function
   makecontext(&tasks[index].context, fn, 0);
+  tasks[index].state = AVAILABLE;
   tasks[index].waitingOn = -1;
 } // task_create
 
@@ -179,7 +195,7 @@ void task_wait(task_t handle) {
    for (int i = 0; i < num_tasks; i++) {
     printf("      task %d state %d waiton %d\n", i, tasks[i].state, tasks[i].waitingOn);
   }
-   rescheduler(current_task);
+   rescheduler();
 } // task_wait
 
 /**
