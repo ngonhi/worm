@@ -58,51 +58,50 @@ void scheduler_init() {
   tasks[0].state = RUNNING;
 } // schedule_init
 
-task_t find_waiting(task_t current) {
-  int i = current + 1;
+task_t find_waiting() {
+  int i = current_task + 1;
   if (i > num_tasks) i = 0;
-  while (tasks[i].waitingOn != current || i < num_tasks) {
-    printf("%d\n", i);
-    i++;
-      }
-  /*for (int i = current+1; i < num_tasks; i++) {
-    if (tasks[i].waitingOn == current)
+  for (; i < num_tasks || i < current_task+1; i++) {
+    if (tasks[i].waitingOn == current_task) {
       return i;
-      }*/
+      if (i > num_tasks)
+        i = 0;
+      }
+    }
 
   return -1;
 } // find_waiting
 
 
-task_t find_new(task_t current) {
-  int i = current + 1;
+task_t find_new() {
+  int i = current_task + 1;
   if (i > num_tasks)
     i = 0;
-  while (tasks[i].state != AVAILABLE || i < num_tasks) {
+  while (tasks[i%num_tasks].state != AVAILABLE) {
     i++;
       }
 
   return i;
 } // find_new
 
-void rescheduler(task_t current) {
+void rescheduler() {
   // MAKE THIS AN IF/ELSE CONDITION
   task_t new_task;
 
   // Waiting task
-  if ((new_task = find_waiting(current)) != -1) {
+  if ((new_task = find_waiting()) != -1) {
      printf("   new_task %d current_task %d\n", new_task, current_task);
     tasks[new_task].state = RUNNING;
     tasks[new_task].waitingOn = -1;
   } else { // Totally new task
-    new_task = find_new(current);
+    new_task = find_new();
     tasks[new_task].state = RUNNING;
   }
 
   tasks[new_task].state = RUNNING;
-  task_t temp = current;
-  current = new_task;
-  swapcontext(&tasks[temp].exit_context, &tasks[new_task].context);
+  task_t temp = current_task;
+  current_task = new_task;
+  swapcontext(&tasks[temp].context, &tasks[new_task].context);
 } // rescheduler
 
 /**
@@ -117,9 +116,9 @@ void task_exit() {
   for (int i = 0; i < num_tasks; i++) {
     printf("task %d state %d waiton %d\n", i, tasks[i].state, tasks[i].waitingOn);
   }
-  tasks[current_task].state = AVAILABLE;
+  tasks[current_task].state = ENDED;
 
-  rescheduler(current_task);
+  rescheduler();
   // Get the next task
 } // task_exit
 
@@ -173,13 +172,13 @@ void task_create(task_t* handle, task_fn_t fn) {
  */
 void task_wait(task_t handle) {
   // TODO: Block this task until the specified task has exited.
-  printf("handle %d\n", handle);
+  printf("wait %d\n", handle);
   tasks[current_task].waitingOn = handle;
   tasks[current_task].state = BLOCKED;
    for (int i = 0; i < num_tasks; i++) {
     printf("      task %d state %d waiton %d\n", i, tasks[i].state, tasks[i].waitingOn);
   }
-   rescheduler(current_task);
+   rescheduler();
 } // task_wait
 
 /**
