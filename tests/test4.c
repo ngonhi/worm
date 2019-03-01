@@ -18,6 +18,7 @@ void task2_fn() {
   // Wait for the user to type four characters
   for(int i=0; i<4; i++) {
     int c = task_readchar();
+    printw("%d\n", i);
     printw("You typed %c\n", c);
   }
 }
